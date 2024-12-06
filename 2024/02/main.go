@@ -2,40 +2,24 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
-var isReal bool
+var isReal bool = true
 
 func main() {
-	flag.BoolVar(&isReal, "real", false, "Use real dataset")
-	flag.Parse()
 	filePath := "/home/dev/advent-of-code/2024/02/test"
 	if isReal {
 		filePath = "/home/dev/advent-of-code/2024/02/real"
 	}
-	fmt.Println(isReal)
 	var scanner bufio.Scanner
 	if file, err := os.Open(filePath); err != nil {
 		panic(err)
 	} else {
 		scanner = *bufio.NewScanner(file)
-	}
-
-	if !scanner.Scan() {
-		panic("failed to read")
-	}
-	testValue := -1
-	if !isReal {
-		val, err := strconv.Atoi(strings.Split(scanner.Text(), ":")[1])
-		if err != nil {
-			panic(err)
-		}
-		testValue = val
 	}
 
 	realValue := 0
@@ -48,90 +32,58 @@ func main() {
 				return ret
 			}
 		})
-		// last := nums[0]
-		// lastDelta := 0
-		// numFailures := 0
-		// NumLoop:
-		// 	for _, num := range nums[1:] {
-		// 		delta := num - last
-		// 		if delta*lastDelta < 0 || math.Abs(float64(delta)) < 1 || math.Abs(float64(delta)) > 3 {
-		// 			if numFailures > 0 {
-		// 				continue ScanLoop
-		// 			}
-		// 			numFailures += 1
-		// 			continue NumLoop
-		// 		}
-		// 		lastDelta = delta
-		// 		last = num
-		// 	}
-		// 	realValue += 1
-		if testLine(nums) {
+		fmt.Println(nums)
+		if testLine(nums, true) || testLine(nums[1:], false) {
+			fmt.Println("Passed")
 			realValue += 1
+		} else {
+			fmt.Println("Failed")
 		}
-	}
-	if !isReal {
-		fmt.Println("ExpectedValue:", testValue)
 	}
 	fmt.Println("FoundValue:", realValue)
 }
 
-
-/* 
-
-   -3  -6  -3
-  1  -4  -2  -1
-7   8   4   2   1
-
-    6   6   2
-  1   5   1   1
-1   2   7   8   9
-
-   -3  -5  -5
- -2  -1  -4  -1
-9   7   6   2   1
-
-    1   2   3
-  2  -1   2   0
-1   3   2   4   5
-
-   -4  -2  -3
- -2  -2   0  -3
-8   6   4   4   1
-
-
-TLDR is, form a quick graph w/ edge weights
-
-*/
-type edge struct {
-	to *node
-	weight int
+func testLine(nums []int, allowSkip bool) bool {
+	fmt.Print("\t")
+	if allowSkip {
+		fmt.Print("0")
+	} else {
+		fmt.Print("1")
+	}
+	fmt.Println(" Ascending")
+	if testBounds(nums, 1, 3, allowSkip) {
+		return true
+	}
+	fmt.Print("\t")
+	if allowSkip {
+		fmt.Print("0")
+	} else {
+		fmt.Print("1")
+	}
+	fmt.Println(" Descending")
+	if testBounds(nums, -3, -1, allowSkip) {
+		return true
+	}
+	return false
 }
 
-type node struct {
-	val int
-	short edge
-	long edge
-}
-
-func testLine(nums []int) bool {
-	for i := range nums[:len(nums)-1] {
-		e1 := edge{
-// Create edges for from i to i+1, i+2
-// Create special node for the last section
-// Traverse nodes down, if all short edges are fine in length
-// or if we can make a good path with ONLY one long edge
-// then it's fine.
-		}
-		node := node{
-			val: nums[i],
-
+func testBounds(nums []int, low int, high int, allowSkip bool) bool {
+	prev := nums[0]
+	for _, curr := range nums[1:] {
+		delta := curr - prev
+		fmt.Println("\t\t", prev, curr, low, delta, high, allowSkip)
+		if delta >= low && delta <= high {
+			fmt.Println(" next")
+			prev = curr
+		} else if allowSkip {
+			fmt.Println(" skipping")
+			allowSkip = false
+		} else {
+			fmt.Println(" Failed")
+			return false
 		}
 	}
-}
-
-func checkDelta(a int, b int) bool {
-	delta := a - b
-	return delta >= 1 && delta <= 3
+	return true
 }
 
 func mapSlice[T any, U any](arr []T, mapFunc func(T) U) (mappedArr []U) {
