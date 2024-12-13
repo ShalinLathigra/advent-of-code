@@ -16,33 +16,6 @@ const (
 	partTwoExpected int = 246
 )
 
-// points organized into two 2d arrays
-// First one, stores organized by X axis
-// Second one, organized by Y axis
-
-/*
-..............
-..#..#..#..#..
-..............
-...#..#..#..#.
-..............
-.#..#..#..#...
-..............
-
-this makes two grids, Y axis one looks like:
-
-[],[1],[5],[3],[1],[5],[3],[1],[5],[3],[1],[5],[3],[]
-
-X axis one is like
-
-[],[1,4,7,10],[],[3,6,9,12],[],[2,5,8,11],[]
-
-
-then, when we are flicking through we go:
-"I am now at x=12, y=4, and I'm going up."
-look at all elements of array x[12], if any of them are > my thing, then we ball
-
-*/
 func main() {
 	// parse flags
 	flag.BoolVar(&isPartTwo, "p", false, "perform part two calculations")
@@ -61,42 +34,62 @@ func main() {
 
 	// split into rules and 
 	
-    start, rows, cols := parseInput(scanner)
-    fmt.Println("start", start)
-    fmt.Println("rows", rows)
-    fmt.Println("cols", cols)
+    start, grid := parseInput(scanner)
+    // fmt.Println("start", start)
+    // printGrid(grid)
 	if isPartTwo {
-		runPartTwo()
+		runPartTwo(start, grid)
 	} else {
-		runPartOne(start, rows, cols)
+		runPartOne(start, grid)
 	}
 }
+
+type tileState int
+
+const (
+    Empty tileState = iota
+    Wall
+    Traversed
+)
 
 type vec2 struct {
     x int
     y int
 }
 
-func parseInput(scanner *bufio.Scanner) (start vec2, rows [][]int, cols [][]int) {
+func add (a vec2, b vec2) (c vec2) {
+    return vec2{x: a.x + b.x, y: a.y + b.y}
+}
+
+func sub (a vec2, b vec2) (c vec2) {
+    return vec2{x: a.x - b.x, y: a.y - b.y}
+}
+
+func dot (a vec2, b vec2) (c int) {
+    return a.x * b.x + a.y * b.y
+}
+
+func scale (a vec2, b int) (c vec2) {
+    return vec2{x: a.x * b, y: a.y * b}
+}
+
+func parseInput(scanner *bufio.Scanner) (start vec2, grid [][]tileState) {
     y := 0
-    rows = make([][]int, 0, 12)
-    cols = make([][]int, 0, 12)
+    grid = make([][]tileState, 0, 12)
     // get dimensions of the thing? For each Y, add a new X
 	for scanner.Scan() {
-        if y > len(rows)-1 {
-            rows = append(rows, make([]int, 0, 12)) 
+        if y > len(grid)-1 {
+            grid = append(grid, make([]tileState, 0, 12)) 
         }
 	    for x, rune := range scanner.Text() {
-            if x > len(cols)-1 {
-                cols = append(cols, make([]int, 0, 12))
-            }
             switch rune {
             case '^':
                 start = vec2{x: x, y: y}
+                grid[y] = append(grid[y], Traversed)
             case '#':
-                rows[y] = append(rows[y], x)
-                cols[x] = append(cols[x], y)
+                grid[y] = append(grid[y], Wall)
             default:
+                grid[y] = append(grid[y], Empty)
             }
         }
         y += 1
@@ -110,73 +103,146 @@ func turnRight(dir vec2) (rotated vec2) {
     return
 }
 
-func runPartOne(start vec2, rows [][]int, cols [][]int) {
+func runPartOne(start vec2, grid [][]tileState) {
 	fmt.Println("Hit Part One")
     dir := vec2{0, -1}
     pos := start
     count := 1
-    TraversalLoop:
     for {
-        // for y from 0 if magnitude > 0, from len(y) if magnitude < 0
-        if dir.y < 0 {
-            for y := range cols[pos.x] {
-                i := len(cols[pos.x]) - 1 - y // work backwards through the thing
-                // stop when/if we encounter a number that is below the current y value
-                if cols[pos.x][i] < pos.y {
-                    dist := pos.y - cols[pos.x][i] - 1
-                    fmt.Println(pos.x, pos.y, " hit ", pos.x, i, "traveled", dist)
-                    count += dist
-                    pos.y = cols[pos.x][i] + 1
-                    dir = turnRight(dir)
-                    continue TraversalLoop
-                }
-            }
-        } else if dir.y > 0 {
-            for y := range cols[pos.x] {
-                // stop when/if we encounter a number that is below the current y value
-                if cols[pos.x][y] > pos.y {
-                    dist := cols[pos.x][y] - pos.y - 1
-                    fmt.Println(pos.x, pos.y, " hit ", pos.x, y, "traveled", dist)
-                    count += dist
-                    pos.y = cols[pos.x][y] - 1
-                    dir = turnRight(dir)
-                    continue TraversalLoop
-                }
-            }
-        } else if dir.x < 0 {
-            for x := range rows[pos.y] {
-                i := len(rows[pos.y]) - 1 - x // work backwards through the thing
-                // stop when/if we encounter a number that is below the current y value
-                if rows[pos.y][i] < pos.x {
-                    dist := pos.x - rows[pos.y][i] - 1
-                    fmt.Println(pos.x, pos.y, " hit ", i, pos.y, "traveled", dist)
-                    count += dist
-                    pos.x = rows[pos.y][i] + 1
-                    dir = turnRight(dir)
-                    continue TraversalLoop
-                }
-            }
-        } else if dir.x > 0 {
-            for x := range rows[pos.y] {
-                // stop when/if we encounter a number that is below the current y value
-                if rows[pos.y][x] > pos.x {
-                    dist := rows[pos.y][x] - pos.x - 1
-                    fmt.Println(pos.x, pos.y, " hit ", x, pos.y, "traveled", dist)
-                    count += dist
-                    pos.x = rows[pos.y][x] - 1
-                    dir = turnRight(dir)
-                    continue TraversalLoop
-                }
-            }
+        next := add(pos, dir)
+        if next.y < 0 || next.y >= len(grid) || next.x < 0 || next.x >= len(grid[0]) {
+            break
         }
-        // if we ever reach here, break out of the loop
-        break
+        switch grid[next.y][next.x] {
+        case Empty:
+            count += 1
+            grid[next.y][next.x] = Traversed
+        case Wall:
+            dir = turnRight(dir)
+            continue
+        }
+        pos = next
     }
 	fmt.Println("Done Part One", count, "if test", partOneExpected)
 }
-func runPartTwo() {
+
+func printGrid(grid [][]tileState) {
+    fmt.Println("grid")
+    for line := range grid {
+        fmt.Println(line, grid[line])
+    }
+}
+
+type obstacle struct {
+    vec2
+    dir vec2
+}
+
+func runPartTwo(start vec2, grid [][]tileState) {
 	fmt.Println("Hit Part Two")
-	fmt.Println("Hit Part Two", "if test", partTwoExpected)
+    /*
+    for this one I think we're back to the first version of parsing. We really only care
+    about the positions of the obstacles.
+
+    1. Parse out the path the guard is taking
+    2. Find any points where a an up intersects a right, right intersects down, etc.
+    3. 
+
+
+    Really just need any combination of three obstacles such that three things are true:
+
+    HitFromBottom is one right of HitFromLeft
+    HitFromLeft is one up from HitFromTop
+    HitFromTop is one left from HitFromRight
+    HitFromRight is one down from HitFromBottom
+
+    If these three things are true and there are no other obstacles interfering with the
+    paths between these things, then we have a valid segment
+
+    Therefore, when walking through obstacles, divide them up into "hit from top, bottom,
+    right, and left"
+
+    Divvy them up based on X, Y coords into lists that can be easily searched.
+
+    during traversal, create a 3 deep list for every obstacle that we hit
+    obstacles[i] = [i]
+    obstacles[i-1] = [i-1, i]
+    obstacles[i-2] = [i-2, i-1, i]
+
+    if there are three obstacles, and they have the correct orientations and offsets
+    then we can check the paths and see what happens
+    */
+    dir := vec2{0, -1}
+    pos := start
+    count := 0
+    obstacles := make([][]obstacle, 0, 12)
+    for {
+        next := add(pos, dir)
+        if next.y < 0 || next.y >= len(grid) || next.x < 0 || next.x >= len(grid[0]) {
+            break
+        }
+        if grid[next.y][next.x] == Wall {
+            dir = turnRight(dir)
+            obstacles = append(obstacles, make([]obstacle, 0, 3))
+            i := len(obstacles)-1
+            curr := obstacle{
+                vec2: pos, //vec2{x:int(next.x), y: int(next.y)},
+                dir: dir,
+            }
+            obstacles[i] = append(obstacles[i], curr)
+            if i >= 1 {
+                obstacles[i-1] = append(obstacles[i-1], curr)
+            }
+            if i >= 2{
+                obstacles[i-2] = append(obstacles[i-2], curr)
+            }
+            continue
+        }
+        pos = next
+    }
+    for i, chain := range(obstacles) {
+        fmt.Println(i, chain)
+        if len(chain) == 3 && checkChain(grid, chain) {
+            count += 1
+            fmt.Println("Passed", count)
+        }
+    }
+	fmt.Println("Hit Part Two", count, "if test", partTwoExpected)
+}
+
+func checkChain(grid [][]tileState, chain []obstacle) bool {
+    // go along the line from the last obstacle, adding direction each time
+    // if we reach a point where rotatedDir dot vector towards chain[0] > 0
+    // then we have a valid combination
+
+    // could accomplish all of this with the original parsing method, but not going to
+    // bother re-implementing atm
+    // if chain[2].x == chain[1].x, then targetting vec2{chain[2].y, chain[0].x]
+    var target vec2
+    if chain[2].x == chain[1].x {
+        target = vec2{chain[0].x, chain[2].y}
+    } else {
+        target = vec2{chain[2].x, chain[0].y}
+    }
+
+    // must be able to walk from chain[2].vec2 to target along chain[2].dir
+    // without encountering an obstacle
+    toTarget := sub(target, chain[2].vec2)
+    steps := dot(chain[2].dir, toTarget)
+    if steps <= 0 {
+        panic("impossible traversal, should never happen")
+    }
+    fmt.Println(chain, target, toTarget, steps)
+
+    for i := range(steps) {
+        testPoint := add(chain[2].vec2, scale(chain[2].dir, i))
+        fmt.Println(testPoint)
+        if grid[testPoint.y][testPoint.x] == Wall {
+            fmt.Println("Hit Wall")
+            return false
+        }
+    }
+    return true
 }
 
 func mapSlice[T any, U any](arr []T, mapFunc func(T) U) (mappedArr []U) {
