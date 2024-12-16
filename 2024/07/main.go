@@ -6,14 +6,16 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+    "strconv"
+    "strings"
 	"os"
 )
 
 var isPartTwo bool
 
 const (
-	partOneExpected int = 123
-	partTwoExpected int = 246
+	partOneExpected int = 3749
+	partTwoExpected int = 11387
 )
 
 func main() {
@@ -34,28 +36,114 @@ func main() {
 
 	// split into rules and 
 	
-	parseInput(scanner)
+    formulas := parseInput(scanner)
 	if isPartTwo {
-		runPartTwo()
+		runPartTwo(formulas)
 	} else {
-		runPartOne()
+		runPartOne(formulas)
 	}
 }
 
-func parseInput(scanner *bufio.Scanner) {
+// element 0 is the value
+// elements 1+ are the terms
+func parseInput(scanner *bufio.Scanner) (formulas [][]int){
+    formulas = make([][]int, 0, 9)
 	for scanner.Scan() {
-		// text := scanner.Text()
+		text := scanner.Text()
+        chunks := strings.Split(text, ": ")
+        if len(chunks) <= 0 {
+            panic("unable to split")
+        }
+        formula := mapSlice(strings.Split(chunks[1], " "), convert)
+        formula = append(formula, convert(chunks[0]))
+        formulas = append(formulas, formula) 
 	}
 	return
 }
 
-func runPartOne() {
-	fmt.Println("Hit Part One")
-	fmt.Println("Done Part One", "if test", partOneExpected)
+func convert(input string) (output int) {
+    output, err := strconv.Atoi(input)
+    if err != nil {
+        panic(err)
+    }
+    return
 }
-func runPartTwo() {
+
+func runPartOne(formulas [][]int) {
+	fmt.Println("Hit Part One")
+    sum := 0
+    for i, formula := range(formulas) {
+        value := formula[len(formula)-1]
+        terms := formula[:len(formula)-1]
+        fmt.Printf("[%d] %d: %v\n", i, value, terms)
+        if checkTerm(terms[0], value, terms[1:]) {
+            sum += value
+        }
+    }
+    // operations = [len(terms)-1]bool
+    // true == add, false == multiply
+    // There's got to be a more sophisticated way to iterate through though.
+    // Just be naive for now.
+    // Could expand the whole space?
+	fmt.Println("Done Part One", sum, "if test", partOneExpected)
+}
+
+func checkTerm(value int, target int, terms []int) bool {
+    if len(terms) == 0 {
+        return value == target
+    }
+    if checkTerm(value + terms[0], target, terms[1:]) {
+        // fmt.Println("+", value, terms[0], value + terms[0])
+        return true
+    }
+    if checkTerm(value * terms[0], target, terms[1:]) {
+        // fmt.Println("*", value, terms[0], value * terms[0])
+        return true
+    }
+    
+    // in this case, we're going to take left * significance of right
+    // how would I get the largest multiple of 10?
+    // quickest and easiest way to do it is below
+    next := value * getLarger(terms[0]) + terms[0]
+    if checkTerm(next, target, terms[1:]) {
+        // fmt.Println("||", value, terms[0], next)
+        return true
+    }
+    return false
+}
+
+
+// takes in a number, returns the largest power of 10 that can contain this number
+// 8 -> 10
+// 12 -> 100
+// 99999 -> 100000
+func getLarger(input int) int {
+    i := 10
+
+    for {
+        if i > input {
+            return i
+        }
+        i *= 10
+    }
+}
+
+func runPartTwo(formulas [][]int) {
 	fmt.Println("Hit Part Two")
-	fmt.Println("Hit Part Two", "if test", partTwoExpected)
+    sum := 0
+    for i, formula := range(formulas) {
+        value := formula[len(formula)-1]
+        terms := formula[:len(formula)-1]
+        fmt.Printf("[%d] %d: %v\n", i, value, terms)
+        if checkTerm(terms[0], value, terms[1:]) {
+            sum += value
+        }
+    }
+    // operations = [len(terms)-1]bool
+    // true == add, false == multiply
+    // There's got to be a more sophisticated way to iterate through though.
+    // Just be naive for now.
+	fmt.Println("Hit Part Two", sum, "if test", partTwoExpected)
 }
 
 func mapSlice[T any, U any](arr []T, mapFunc func(T) U) (mappedArr []U) {
