@@ -7,13 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+    "slices"
 )
 
 var isPartTwo bool
 
 const (
 	partOneExpected int = 1928
-	partTwoExpected int = 246
+	partTwoExpected int = 2858
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	
     input, length := parseInput(scanner)
 	if isPartTwo {
-		runPartTwo()
+		runPartTwo(input)
 	} else {
 		runPartOne(input, length)
 	}
@@ -47,6 +48,10 @@ type file struct {
     offset int
     length int
     blankLength int
+}
+
+func (f *file) String() string {
+    return fmt.Sprintf("(id:%d, off: %d, ln: %d, bl: %d)", f.id, f.offset, f.length, f.blankLength)
 }
 
 func parseInput(scanner *bufio.Scanner) (diskMap []file, compactLength int) {
@@ -71,11 +76,10 @@ func parseInput(scanner *bufio.Scanner) (diskMap []file, compactLength int) {
             length: length,
             blankLength: blankLength,
         }
-        offset += length
         diskMap = append(diskMap, file)
         compactLength += length
+        offset += length + blankLength
     }
-
     return
 }
 
@@ -117,9 +121,34 @@ func runPartOne(input []file, length int) {
     }
 	fmt.Println("Done Part One", sum, "if test", partOneExpected)
 }
-func runPartTwo() {
+
+// say we start with 
+func runPartTwo(input []file) {
 	fmt.Println("Hit Part Two")
-	fmt.Println("Hit Part Two", "if test", partTwoExpected)
+    for i := range len(input) {
+        moverIndex := len(input) - 1 - i
+        for j := range (moverIndex - 1) {
+            curr := &input[j + 1]
+            prev := &input[j]
+            delta := curr.offset - (prev.offset + prev.length)
+            if delta < input[moverIndex].length {
+                continue
+            }
+            // move [moverIndex] to j
+            toInsert := input[moverIndex]
+            toInsert.offset = prev.offset + prev.length
+            input = slices.Delete(input, moverIndex, moverIndex+1)
+            input = slices.Insert(input, j+1, toInsert)
+            break
+        }
+    }
+    count := 0
+    for _, in := range input {
+        for i := range in.length {
+            count += in.id * (in.offset + i)
+        }
+    }
+	fmt.Println("Hit Part Two", count, "if test", partTwoExpected)
 }
 
 func mapSlice[T any, U any](arr []T, mapFunc func(T) U) (mappedArr []U) {
