@@ -1,7 +1,7 @@
 package main
 
 // https://javorszky.co.uk/2024/12/12/advent-of-code-2024-day-11/
-// Skimming over first bit of this wiki gave hint about memoization and
+// Skimming over first bit of this wiki gave hint about memoization and 
 // caching count specifically rather than the whole lists
 // when called, pass in test text, expected value
 
